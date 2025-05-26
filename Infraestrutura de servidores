@@ -1,0 +1,189 @@
+# infraestrutura-servidores-rede
+processo de instalação e configuração de diversos sistemas operacionais
+
+#README.md  
+
+#WINDOW-SERVER               # A fortaleza da Microsoft
+
+  ├── INSTALACAO.MD
+  # Baixe a imagem ISO do Windows Server
+                                    Crie uma nova máquina virtual com, no mínimo, 2 GB de RAM (recomendado: 4 GB ou mais)
+				    Atribua um disco rígido virtual com espaço suficiente (mínimo recomendado: 32 GB)
+                                    Monte a ISO como mídia de instalação e inicie a máquina
+				    Ao iniciar, escolha a versão desejada (com ou sem interface gráfica)
+                                    Siga o assistente de instalação
+                                    Defina senha para o usuário Administrador
+				 
+
+
+
+  ├── DNS                                                    
+  # Abra o Server Manager
+  
+                                 Clique em Add Roles and Features
+				 Marque a opção DNS Server
+                                 Install-WindowsFeature -Name DNS -IncludeManagementTools
+				 Abra o DNS Manager (dnsmgmt.msc)
+                                 Clique com o botão direito em Forward Lookup Zones → New ZoneSiga o assistente:
+                                   Zone Type: Primary Zone.
+                                   Zone Name: por exemplo, empresa.local.
+                                   Zone File: aceite o nome padrão ou personalize.
+                                   Dynamic Updates: escolha se deseja permitir atualizações dinâmicas
+
+			         Crie registros DNS 
+	                              A (Host) Record
+	                              Associa um nome a um endereço IP
+			              CNAME (Alias) Record
+	                              Cria um apelido para outro nome
+			           
+			           
+	                            
+  ├── dhcp 
+  # Necessario ter endereço IP estático configurado na interface de rede 
+  
+                                Conta com permissões de administrador
+				Se o servidor estiver em um domínio, ele precisa ser autorizado para distribuir IPs
+                                Add-DhcpServerInDC -DnsName "nome-do-servidor" -IPAddress "ip-do-servidor"
+				Um escopo define o intervalo de IPs que o servidor poderá oferecer
+                                Add-DhcpServerv4Scope -Name "EscopoPrincipal" -StartRange 192.168.0.100 -EndRange 192.168.0.200 -SubnetMask 255.255.255.0 -State Active
+				Iniciar o serviço DHCP
+                                Start-Service dhcpserver
+
+
+
+    
+  └── active-directory         
+  # Necessario
+  
+                                 IP fixo configurado
+                                 Nome do servidor definido
+				 Instalar a função Active Directory
+                                 Install-WindowsFeature -Name AD-Domain-Services -IncludeManagementTools
+				 Abrir o Server Manager
+                                 Add roles and features”
+                                 Selecionar "Active Directory Domain Services"
+                                 Instalar
+
+
+
+
+├── debian
+
+├── instalacao.md 
+
+# Pré-requisitos
+                                 Um PC ou VM (VirtualBox, VMware, Proxmox, etc.)
+				 Imagem ISO do Debian
+     
+# Passo a passo da instalação
+
+                                 Escolha "Install" ou "Graphical Install
+				 O instalador tenta configurar via DHCP automaticamente
+                                 Se falhar, você pode configurar IP estático manualmente
+                                 Coloque o nome da máquina (hostname)
+				 coloque o nome de domínio
+                                 coloque a senha do root
+				 Criação de usuário
+                                 Nome completo, nome de usuário e senha
+				 Instalação do sistema base
+                                 Escolha de mirror (espelho de pacotes)
+                                 Pode usar um mirror brasileiro, como ftp.br.debian.org.
+				 Instalar GRUB
+                                 Reinicie e remova a mídia
+
+
+   └── dhcp                  
+   # Instalacao de pacotes
+
+                                 sudo apt update
+                                 sudo apt install isc-dhcp-server bind9
+				 sudo nano /etc/dhcp/dhcpd.conf
+                                 option domain-name "meurede.local";
+                                 option domain-name-servers 192.168.1.1;
+                                 default-lease-time 600;
+                                 max-lease-time 7200;
+                                 subnet 192.168.1.0 netmask 255.255.255.0 {
+                                 range 192.168.1.100 192.168.1.150;
+                                 option routers 192.168.1.1;
+                                 option broadcast-address 192.168.1.255;
+                                 }
+				 No arquivo /etc/default/isc-dhcp-server, defina
+                                 INTERFACESv4="eth0"
+				 Substitua eth0 pelo nome da sua interface de rede (use ip a para ver)
+                                 # Iniciar o DHCP
+				 sudo systemctl restart isc-dhcp-server
+                                 sudo systemctl enable isc-dhcp-server
+				 
+                                 
+
+   └── dns                   
+   # Configurando o DNS (BIND9)
+
+                                 sudo nano /etc/bind/named.conf.options
+				 options {
+                                 directory "/var/cache/bind";
+				 forwarders {
+                                 8.8.8.8;
+				 1.1.1.1;
+                                 };
+				 dnssec-validation auto;
+                                 listen-on-v6 { none; };
+				 };
+                                 Reiniciar BIND
+				 sudo systemctl restart bind9
+                                 sudo systemctl enable bind9
+				 
+   
+├── wazuh                     
+# instalacao.md          
+# Pré-requisitos
+
+                              Uma máquina com Ubuntu 20.04 LTS ou superior (também pode ser Debian ou CentOS/RHEL)
+			      Acesso root ou usuário com privilégios
+	                      No mínimo 4 GB de RAM, recomendado 8 GB+
+		       
+# instalacao 
+                              sudo apt update && sudo apt upgrade -y
+			      curl -sO https://packages.wazuh.com/4.7/wazuh-install.sh
+	                      sudo bash wazuh-install.sh -a
+		              Acesse o Wazuh Dashboard
+		              https://<seu-ip>:5601
+		              Usuário padrão: admin
+		              # Adicione agentes
+		              curl -sO https://packages.wazuh.com/4.x/apt/wazuh-agent_4.7.0-1_amd64.deb
+                              sudo WAZUH_MANAGER='<ip-do-servidor>' dpkg -i ./wazuh-agent_4.7.0-1_amd64.deb
+                              sudo systemctl enable wazuh-agent
+                              sudo systemctl start wazuh-agent
+
+
+├── kali                    
+└── instalacao.md            
+   
+# Passo a passo da instalação
+
+                             Baixe a imagem ISO
+			     Inicialize e instale
+	                     Siga os passos do instalador
+		             Idioma, teclado, rede
+	                     Nome do host, domínio (pode deixar em branco)
+		             Crie usuário e senha
+	                     Particionamento (guiado ou manual)
+		             Escolha os pacotes (pode manter o padrão, inclui ambiente gráfico e ferramentas)
+	                     Instale o GRUB
+		             Finalize e reinicie
+
+	
+└── ansible                
+# Passo a passo da instalação do Ansible
+
+                             Atualize o sistema
+			     sudo apt update && sudo apt full-upgrade -y
+	                     Instale o Ansible com APT:
+		             sudo apt install ansible -y
+	                     Confirme a instalação:
+	                     ansible --version
+		             ansible [core 2.15.2]
+                             config file = /etc/ansible/ansible.cfg
+                             python version = 3.x.x
+                              
+
